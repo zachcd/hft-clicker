@@ -39,16 +39,16 @@
      body {
          margin: 0;
      }
-     #playfield {
+     /*#playfield {
          display: block;
          width: 100vw;
          height: 100vh;
-     }
+     }*/
   </style>
 </head>
-<body>
+<!-- <body>
   <canvas id="playfield"></canvas>
-</body>
+</body> -->
 <script>
 const happyfuntimes = require('happyfuntimes');
 
@@ -57,7 +57,12 @@ const globals = {
   playerId: 0,
   frameCount: 0,
   players: [],
-  ctx: document.querySelector("#playfield").getContext("2d"),
+  total: 0,
+  column: 0,
+  row: 0,
+  max: 2,
+  growth: 1
+  // ctx: document.querySelector("#playfield").getContext("2d"),
 };
 
 function randInt(min, max) {
@@ -68,109 +73,254 @@ function randInt(min, max) {
   return Math.random() * (max - min) + min | 0;
 }
 
-function pickRandomPosition() {
-  return {
-    x: 30 + randInt(globals.ctx.canvas.width  - 60),
-    y: 30 + randInt(globals.ctx.canvas.height - 60),
-  };
-}
+// function pickRandomPosition() {
+//   return {
+//     x: 30 + randInt(globals.ctx.canvas.width  - 60),
+//     y: 30 + randInt(globals.ctx.canvas.height - 60),
+//   };
+// }
 
-class Goal {
-  constructor() {
-    this.pickGoal();
-    this.radiusesSquared = globals.itemSize * 2 * globals.itemSize;
-  }
-
-  pickGoal() {
-    this.position = pickRandomPosition();
-  }
-
-  isHit(otherPosition) {
-    const dx = otherPosition.x - this.position.x;
-    const dy = otherPosition.y - this.position.y;
-    return dx * dx + dy * dy < this.radiusesSquared;
-  }
-}
+// class Goal {
+//   constructor() {
+//     this.pickGoal();
+//     this.radiusesSquared = globals.itemSize * 2 * globals.itemSize;
+//   }
+//
+//   pickGoal() {
+//     this.position = pickRandomPosition();
+//   }
+//
+//   isHit(otherPosition) {
+//     const dx = otherPosition.x - this.position.x;
+//     const dy = otherPosition.y - this.position.y;
+//     return dx * dx + dy * dy < this.radiusesSquared;
+//   }
+// }
 
 class Player {
-  constructor(netPlayer, name) {
+  constructor(netPlayer, name, column) {
     this.netPlayer = netPlayer;
     this.name = name;
-    this.position = pickRandomPosition();
+    this.score = 0;
+    this.column = column
+    //this.position = pickRandomPosition();
 
     const hue = randInt(360);
     const sat = randInt(2) * 50 + 50;
-    const val = 50;
-    this.color = "hsl(" + hue  + "," + sat + "%," + val + "%)";
+  const val = 50;
+   this.color = "hsl(" + hue  + "," + sat + "%," + val + "%)";
+
+
 
     netPlayer.addEventListener('disconnect', Player.prototype.disconnect.bind(this));
-    netPlayer.addEventListener('move', Player.prototype.movePlayer.bind(this));
+    // netPlayer.addEventListener('move', Player.prototype.movePlayer.bind(this));
+    netPlayer.addEventListener('click', Player.prototype.addPoint.bind(this));
+    netPlayer.addEventListener('changeName', Player.prototype.changeName.bind(this));
     netPlayer.sendCmd('color', this.color);
+    console.log(this)
   }
-
+  changeName(name) {
+    this.name = name
+  }
   disconnect() {
     const ndx = globals.players.indexOf(this);
+    globals.total -= globals.players[ndx].score;
+    if (globals.players[ndx].column) {
+      globals.column -= globals.players[ndx].score
+    } else {
+      globals.row -= globals.players[ndx].score
+    }
     if (ndx >= 0) {
       globals.players.splice(ndx, 1);
     }
+    render()
   }
-
-  movePlayer(cmd) {
-    this.position.x = Math.floor(cmd.x * globals.ctx.canvas.clientWidth);
-    this.position.y = Math.floor(cmd.y * globals.ctx.canvas.clientHeight);
-
-    if (globals.goal.isHit(this.position)) {
-      // This will generate a 'scored' event on the client (player's smartphone)
-      // that corresponds to this player.
-      this.netPlayer.sendCmd('scored', {
-        points: randInt(5, 11), // 5 to 10 points
-      });
-      globals.goal.pickGoal();
+  addPoint() {
+    globals.max +=1
+    let point = randInt(1,globals.max)
+    this.netPlayer.sendCmd('scored', {
+      points: point
+    })
+    if (this.column) {
+      globals.column += point
+      console.log(globals.column)
+    } else {
+      globals.row += point
     }
+    this.score += point
+    globals.total += point
+    render()
   }
+
+  // movePlayer(cmd) {
+  //   this.position.x = Math.floor(cmd.x * globals.ctx.canvas.clientWidth);
+  //   this.position.y = Math.floor(cmd.y * globals.ctx.canvas.clientHeight);
+  //
+  //   if (globals.goal.isHit(this.position)) {
+  //     // This will generate a 'scored' event on the client (player's smartphone)
+  //     // that corresponds to this player.
+  //     this.netPlayer.sendCmd('scored', {
+  //       points: randInt(5, 11), // 5 to 10 points
+  //     });
+  //     globals.goal.pickGoal();
+  //   }
+  // }
 }
 
 const server = new happyfuntimes.GameServer();
-globals.goal = new Goal();
+//globals.goal = new Goal();
 
 // A new player has arrived.
+let column = false
 server.on('playerconnect', function(netPlayer) {
-  globals.players.push(new Player(netPlayer, "Player" + (++globals.playerId)));
+  globals.players.push(new Player(netPlayer, "Player" + (++globals.playerId), column));
+  column = !column
+  console.log(netPlayer)
+  render()
 });
 
-function drawItem(ctx, position, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(position.x, position.y, globals.itemSize, 0, Math.PI * 2);
-  ctx.fill();
-};
+// function drawItem(ctx, position, color) {
+//   ctx.fillStyle = color;
+//   ctx.beginPath();
+//   ctx.arc(position.x, position.y, globals.itemSize, 0, Math.PI * 2);
+//   ctx.fill();
+// };
 
-function resize(canvas) {
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-}
+// function resize(canvas) {
+//   const width = canvas.clientWidth;
+//   const height = canvas.clientHeight;
+//   if (canvas.width !== width || canvas.height !== height) {
+//     canvas.width = width;
+//     canvas.height = height;
+//   }
+// }
 
 function render() {
-  ++globals.frameCount;
+  var playerContainer = document.getElementById("playercontain")
+  // var rows = document.createElement("div");
+  // var columns = document.createElement("div");
+  // let columnWidth = (globals.column /globals.total) * 100
+  // rows.style.width =  100 - columnWidth + "vw"
+  // rows.style.float = "left"
+  // columns.style.width = columnWidth+ "vw"
+  // columns.style.float = "right"
+  console.log(globals.total)
+  console.log(globals.growth)
+  if (globals.total >= Math.pow(10, globals.growth)) {
+    globals.growth += 1
+  }
+  playerContainer.style.width = (globals.total / Math.pow(10, globals.growth)) * 100  + "vw"
+  playerContainer.style.height = (globals.total / Math.pow(10, globals.growth)) * 100 + "vh"
+  playerContainer.style.marginTop = (100 - ((globals.total / Math.pow(10, globals.growth)) * 100))/2 + "vh"
+  playerContainer.style.marginLeft = "auto"
+  playerContainer.style.marginRight = "auto"
 
-  const ctx = globals.ctx;
+  while (playerContainer.firstChild) {
+    playerContainer.removeChild(playerContainer.firstChild);
+  }
+  // playerList.appendChild(rows)
+  // playerList.appendChild(columns)
+  let container = playerContainer
+  let align = "right"
+  let remaining = globals.total
+  globals.players.forEach( function (player) {
+    var div = document.createElement("div")
+    var playerInfo = document.createTextNode(player.name + ': ' + player.score)
+    var textContain = document.createElement("div")
+    div.style.textAlign = "center"
+    div.style.verticalAlign = "middle"
+    var textBeforeBlock = document.createElement("div")
+    textBeforeBlock.style.height = "40%"
+    textContain.appendChild(playerInfo)
+    div.appendChild(textBeforeBlock)
+    div.appendChild(textContain)
+    div.style.backgroundColor = player.color
+    let nextContainer
 
-  resize(ctx.canvas);
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    switch (align) {
+      case "right":
+        div.style.float= "left"
+        div.style.width = (player.score / remaining) * 100 + "%"
+        div.style.height = "100%"
 
-  globals.players.forEach(function(player) {
-    drawItem(ctx, player.position, player.color);
-  });
+        align = "down"
+        container.appendChild(div)
+        nextContainer = document.createElement("div")
+        container.appendChild(nextContainer)
+        nextContainer.style.float = "right"
+        nextContainer.style.width = (remaining - player.score)/ remaining * 100 + "%"
+        nextContainer.style.height = "100%"
+        container = nextContainer
+        break;
+      case "down":
+          div.style.height = (player.score / remaining) * 100 + "%"
+          div.style.width = "100%"
+          div.style.float = "right"
+          align = "left"
+          container.appendChild(div)
+          nextContainer = document.createElement("div")
+          nextContainer.style.height = (remaining - player.score) /remaining * 100 + "%"
+          nextContainer.style.width = "100%"
+          container.appendChild(nextContainer)
+          container = nextContainer
+          break;
+      case "left":
+        div.style.float= "right"
+        div.style.width = (player.score / remaining) * 100 + "%"
+        div.style.height = "100%"
+        align = "up"
+        container.appendChild(div)
+        nextContainer = document.createElement("div")
+        container.appendChild(nextContainer)
+        nextContainer.style.width = (remaining - player.score)/ remaining * 100 + "%"
+        nextContainer.style.height = "100%"
+        nextContainer.style.float = "left"
+        container = nextContainer
+        break;
+      case "up":
+        nextContainer = document.createElement("div")
+        container.appendChild(nextContainer)
+        nextContainer.style.height = (remaining - player.score) /remaining * 100 + "%"
+        nextContainer.style.width = "100%"
+        div.style.float= "left"
+        div.style.height = (player.score / remaining) * 100 + "%"
+        div.style.width = "100%"
+        align = "right"
+        container.appendChild(div)
 
-  drawItem(ctx, globals.goal.position, (globals.frameCount & 4) ? "red" : "pink");
+        container = nextContainer
+        break;
+      default:
+        align = "right"
+    }
+    remaining = remaining - player.score
 
-  requestAnimationFrame(render);
+    // if (player.column) {
+    //   div.style.width = (player.score / globals.column) * columnWidth + "vw"
+    //   div.style.height = 100 + "vh"
+    //   div.style.lineHeight = 100 + "vh"
+    //   div.style.margin = 0
+    //   div.style.float= "right"
+    //   div.style.fontSize = (player.score / globals.total) * 10 + "vh"
+    //   columns.appendChild(div)
+    // } else {
+    //   div.style.height = (player.score / globals.row) * 100 + "vh"
+    //   div.style.lineHeight = (player.score / globals.row) * 100 + "vh"
+    //   div.style.margin = 0
+    //   div.style.fontSize = (player.score / globals.total) * 10 + "vh"
+    //   rows.appendChild(div)
+    // }
+  })
 };
-requestAnimationFrame(render);
+// requestAnimationFrame(render);
 </script>
-</html>
 
+<body>
+  <div id="playercontain" style="height: 100vh; width: 100vw">
+
+  </div>
+
+
+</body>
+
+</html>

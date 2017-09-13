@@ -101,5 +101,6 @@ requirejs([
     score += cmd.points;
     statusElem.innerHTML = "You scored: " + cmd.points + " total: " + score;
   });
-});
 
+
+});

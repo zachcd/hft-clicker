@@ -22,7 +22,11 @@
   </style>
 </head>
 <body>
+  <div style="float:right; background-color: black">Set Name:
+    <input id="nameInput" type="text" />
+  </div>
 <div id="toucharea">
+
     <div id="msg">touch to move</div>
 </div>
 </body>
@@ -31,6 +35,7 @@ The following script line includes happyfuntimes which defines HFT.
 You could also use require.js or webpack etc...
 -->
 <script src="/node_modules/happyfuntimes/dist/hft.js"></script>
+<!-- <script src="/node_modules/hft-sample-ui/dist/sample-ui"> </script> -->
 <script>
 // Connect to the game
 const client = new HFT.GameClient();
@@ -38,12 +43,13 @@ client.on('connect', handleConnect);
 client.on('disconnect', handleDisconnect);
 client.on('color', handleColor);
 client.on('scored', handleScored);
+// var MobileHacks = sampleUI.mobileHacks
+//   MobileHacks.fixHeightHack();
 
 let points = 0;
 
 function handleConnect() {
-  // nothing to do here though maybe we don't want to
-  // send any touch events until we've connected for example.
+
 }
 
 function handleDisconnect() {
@@ -59,46 +65,59 @@ function handleScored(data) {
   touchArea.textContent = "points: " + points;
 }
 
+const nameEntry = document.querySelector('#nameInput');
 const touchArea = document.querySelector('#toucharea');
-touchArea.addEventListener('mousemove', handleMouseMove);
-touchArea.addEventListener('touchmove', handleTouchMove);
-touchArea.addEventListener('touchstart', (e) => {
-  e.preventDefault();
-});
+// touchArea.addEventListener('mousemove', handleMouseMove);
+// touchArea.addEventListener('touchmove', handleTouchMove);
+// touchArea.addEventListener('touchstart', (e) => {
+//   e.preventDefault();
+// });
+touchArea.addEventListener('click', handleClick)
 
-function handleTouchMove(event) {
-  // only handle the first touch
-  sendMoveCmd(getRelativePosition(event.touches[0], touchArea), touchArea);
+function handleClick(event) {
+  sendClick()
+}
+nameEntry.addEventListener('change', handleName)
+
+function handleName(event) {
+    client.sendCmd('changeName', event.target.value)
 }
 
-function handleMouseMove(event) {
-  sendMoveCmd(getRelativePosition(event, touchArea), touchArea);
+function sendClick() {
+  client.sendCmd('click')
 }
 
-// This will generate a 'move' event in the corresponding
-// NetPlayer object in the game.
-function sendMoveCmd(position, target) {
-  // normalize the position from 0 to 1 because
-  // different players smartphones will have different size
-  // screens
-  client.sendCmd('move', {
-    x: position.x / target.clientWidth,
-    y: position.y / target.clientHeight,
-  });
-};
+// function handleTouchMove(event) {
+//   // only handle the first touch
+//   sendMoveCmd(getRelativePosition(event.touches[0], touchArea), touchArea);
+// }
+//
+// function handleMouseMove(event) {
+//   sendMoveCmd(getRelativePosition(event, touchArea), touchArea);
+// }
+//
+// // This will generate a 'move' event in the corresponding
+// // NetPlayer object in the game.
+// function sendMoveCmd(position, target) {
+//   // normalize the position from 0 to 1 because
+//   // different players smartphones will have different size
+//   // screens
+//   client.sendCmd('move', {
+//     x: position.x / target.clientWidth,
+//     y: position.y / target.clientHeight,
+//   });
+// };
 
 
-function getRelativePosition(event, target) {
-  target = target || event.target;
-  var rect = target.getBoundingClientRect();
-
-  return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  }
-}
+// function getRelativePosition(event, target) {
+//   target = target || event.target;
+//   var rect = target.getBoundingClientRect();
+//
+//   return {
+//     x: event.clientX - rect.left,
+//     y: event.clientY - rect.top,
+//   }
+// }
 
 </script>
 </html>
-
-
